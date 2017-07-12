@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+
+from __future__ import division
+
 """
 This script combines BioNano Genomics optical mapping and 
 CRISPR-Cas9 labeling (in place of BspQI/BssSI/etc.).
@@ -17,8 +20,6 @@ Column 2 is 100kb window.
 Column 3 is frequency of label in corresponding window.
 
 Currently running in Python 2.7.10
-[GCC 4.2.1 Compatible Apple LLVM 8.0.0 (clang-800.0.34)] on darwin
-Late 2013 Macbook Pro with 16 gigs ram and SSD.
 
 TODO:
 -Testing.
@@ -51,8 +52,8 @@ parser.add_argument("-i", required=True, dest="infile",
 parser.add_argument("-n", required=True, dest="num",
                    help="Sliding window size (int).")
 parser.add_argument("-o", required=True, dest="outfile",
-                   help="Output file containing 100kb windows above defined \
-                   threshold (currently: >=7kb; will fix later).")
+                   help="Output file containing mean labels across n region of 100 \
+                   kb windows.")
 args = parser.parse_args()
 
 def sliding_window(seq, n):
@@ -75,15 +76,14 @@ def sliding_window(seq, n):
 def find_mean_labels(infile, num, outfile):
     """
     Sliding window of n lines (n*100kb), finds average # labels above thresh.
+    Average is across entire n length and threshold is based on this average.
     Output file: tsv with n*100kb segments >=7 label average.
     """
     with open(infile, 'rb') as f:
         reader = csv.reader(f, delimiter='\t')
         for line in sliding_window(reader, num): # num = num*100kb windows.
-            label_avg = ((float(line[0][2]) + float(line[1][2]) + float(line[2][2]) +
-                         float(line[3][2]) + float(line[4][2]) + float(line[5][2]) +
-                         float(line[6][2]) + float(line[7][2]) + float(line[8][2]) +
-                         float(line[9][2])) / 10.0) # TODO: fix this ugly mess + below.
+            labels = [int(col[2]) for col in line]
+            label_avg = reduce(lambda x, y: x + y, labels) / len(labels)
             if label_avg >= 7.0:
                 with open(outfile, "ab") as out:
                     writer = csv.writer(out, delimiter='\t', lineterminator="\n")
