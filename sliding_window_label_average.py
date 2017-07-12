@@ -43,11 +43,16 @@ import csv
 import argparse
 
 parser = argparse.ArgumentParser(description='Opens TSV frequency table and \
-        finds average over window of specified length.')
+                                finds average over window of specified length.')
 parser.add_argument("-i", required=True, dest="infile", 
-        help="Input file containing 3 columns: first is chromosome int, \
-        second is ranges (100kb), and third is frequency of labels in this \
-        100kb window.")
+                   help="Input file containing 3 columns: first is chromosome int, \
+                   second is ranges (100kb), and third is frequency of labels in \
+                   this 100kb window.")
+parser.add_argument("-n", required=True, dest="num",
+                   help="Sliding window size (int).")
+parser.add_argument("-o", required=True, dest="outfile",
+                   help="Output file containing 100kb windows above defined \
+                   threshold (currently: >=7kb; will fix later).")
 args = parser.parse_args()
 
 def sliding_window(seq, n):
@@ -67,26 +72,26 @@ def sliding_window(seq, n):
         result = result[1:] + (elem,)
         yield result
 
-def open_tsv(filename):
+def find_mean_labels(infile, num, outfile):
     """
-    Sliding window of 10 lines (1Mb) and finds average # labels.
-    Output file: tsv with 1Mb segments >=7 label average.
+    Sliding window of n lines (n*100kb), finds average # labels above thresh.
+    Output file: tsv with n*100kb segments >=7 label average.
     """
-    with open(filename, 'rb') as f:
+    with open(infile, 'rb') as f:
         reader = csv.reader(f, delimiter='\t')
-        for line in sliding_window(reader, 10): # 10 = 1Mb = 10*100kb windows.
+        for line in sliding_window(reader, num): # num = num*100kb windows.
             label_avg = ((float(line[0][2]) + float(line[1][2]) + float(line[2][2]) +
                          float(line[3][2]) + float(line[4][2]) + float(line[5][2]) +
                          float(line[6][2]) + float(line[7][2]) + float(line[8][2]) +
                          float(line[9][2])) / 10.0) # TODO: fix this ugly mess + below.
             if label_avg >= 7.0:
-                with open(filename+".extracted.txt", "ab") as out:
+                with open(outfile, "ab") as out:
                     writer = csv.writer(out, delimiter='\t', lineterminator="\n")
                     writer.writerow([label_avg] + [line[0][1].split('-')[0]] + 
                                    [line[9][1].split('-')[1]] + 
                                    [subrow for row in line for subrow in row])
 
 def main():
-    open_tsv(args.infile)
+    find_mean_labels(args.infile, int(args.num), args.outfile)
 
 if __name__=="__main__": main()
